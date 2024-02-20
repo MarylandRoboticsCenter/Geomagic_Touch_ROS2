@@ -365,7 +365,8 @@ int main(int argc, char **argv)
     ////////////////////////////////////////////////////////////////
     HDErrorInfo error;
     HHD hHD;
-    hHD = hdInitDevice(DEVICE_NAME);
+    //hHD = hdInitDevice(DEVICE_NAME);
+    hHD = hdInitDevice(HD_DEFAULT_DEVICE);
     if (HD_DEVICE_ERROR(error = hdGetError()))
     {
         // hduPrintError(stderr, &error, "Failed to initialize haptic device");

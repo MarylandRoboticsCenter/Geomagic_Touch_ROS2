@@ -66,6 +66,7 @@ struct OmniState
     hduVector3Dd pos_hist1; // 3x1 history of position used for 2nd order backward difference estimate of velocity
     hduVector3Dd pos_hist2;
     hduQuaternion rot;
+    //HDfloat joints[3]; 
     hduVector3Dd joints;
     hduVector3Dd force; // 3 element double vector force[0], force[1], force[2]
     float thetas[7];
@@ -96,14 +97,15 @@ public:
     PhantomROS(std::shared_ptr<rclcpp::Node> node)
     {
         node_ = node;
-        node_->declare_parameter<std::string>("~omni_name", "phantom");
-        node_->declare_parameter<std::string>("~reference_frame", "/map");
-        node_->declare_parameter<std::string>("~units", "mm");
-        node_->declare_parameter<int>("~publish_rate", 1000);
-        node_->get_parameter<std::string>("~omni_name", omni_name);
-        node_->get_parameter<std::string>("~reference_frame", ref_frame);
-        node_->get_parameter<std::string>("~units", units);
-        node_->get_parameter<int>("~publish_rate", publish_rate);
+        node_->declare_parameter<std::string>("omni_name", "phantom");
+        node_->declare_parameter<std::string>("reference_frame", "/map");
+        node_->declare_parameter<std::string>("units", "mm");
+        node_->declare_parameter<int>("publish_rate", 1000);
+        node_->get_parameter<std::string>("omni_name", omni_name);
+        node_->get_parameter<std::string>("reference_frame", ref_frame);
+        node_->get_parameter<std::string>("units", units);
+        node_->get_parameter<int>("publish_rate", publish_rate);
+        std::cerr<<"Publishing pose in reference frame "<<ref_frame<<std::endl;
     }
 
     void init(OmniState *s)
@@ -113,35 +115,35 @@ public:
         stream1 << omni_name << "/button";
         std::string button_topic = std::string(stream1.str());
         button_publisher = node_->create_publisher<omni_msgs::msg::OmniButtonEvent>(button_topic.c_str(), 100);
-        RCLCPP_INFO(node_->get_logger(), "Publishing button events on: " + button_topic);
+        RCLCPP_INFO(node_->get_logger(), ("Publishing button events on: " + button_topic).c_str());
 
         // Publish on NAME/state
         std::ostringstream stream2;
         stream2 << omni_name << "/state";
         std::string state_topic_name = std::string(stream2.str());
         state_publisher = node_->create_publisher<omni_msgs::msg::OmniState>(state_topic_name.c_str(), 1);
-        RCLCPP_INFO(node_->get_logger(), "Publishing omni state on: " + state_topic_name);
+        RCLCPP_INFO(node_->get_logger(), ("Publishing omni state on: " + state_topic_name).c_str());
 
         // Subscribe to NAME/force_feedback
         std::ostringstream stream3;
         stream3 << omni_name << "/force_feedback";
         std::string force_feedback_topic = std::string(stream3.str());
         haptic_sub = node_->create_subscription<omni_msgs::msg::OmniFeedback>(force_feedback_topic.c_str(), 1, std::bind(&PhantomROS::force_callback, this, std::placeholders::_1));
-        RCLCPP_INFO(node_->get_logger(), "listening to: " + force_feedback_topic + " for haptic info");
+        RCLCPP_INFO(node_->get_logger(), ("listening to: " + force_feedback_topic + " for haptic info").c_str());
 
         // Publish on NAME/pose
         std::ostringstream stream4;
         stream4 << omni_name << "/pose";
         std::string pose_topic_name = std::string(stream4.str());
         pose_publisher = node_->create_publisher<geometry_msgs::msg::PoseStamped>(pose_topic_name.c_str(), 1);
-        RCLCPP_INFO(node_->get_logger(), "Publishing pose on: " + pose_topic_name);
+        RCLCPP_INFO(node_->get_logger(), ("Publishing pose on: " + pose_topic_name).c_str());
 
         // Publish on NAME/joint_states
         std::ostringstream stream5;
         stream5 << omni_name << "/joint_states";
         std::string joint_topic_name = std::string(stream5.str());
         joint_publisher = node_->create_publisher<sensor_msgs::msg::JointState>(joint_topic_name.c_str(), 1);
-        RCLCPP_INFO(node_->get_logger(), "Publishing joint state on: " + joint_topic_name);
+        RCLCPP_INFO(node_->get_logger(), ("Publishing joint state on: " + joint_topic_name).c_str());
 
         state = s;
         state->buttons[0] = 0;
@@ -280,12 +282,18 @@ HDCallbackCode HDCALLBACK omni_state_callback(void *pUserData)
         hdUpdateCalibration(calibrationStyle);
     }
     hdBeginFrame(hdGetCurrentDevice());
+
     // Get transform and angles
     hduMatrix transform;
     hdGetDoublev(HD_CURRENT_TRANSFORM, transform);
     hdGetDoublev(HD_CURRENT_JOINT_ANGLES, omni_state->joints);
+    //hdGetFloatv(HD_CURRENT_JOINT_ANGLES, omni_state->joints);
     hduVector3Dd gimbal_angles;
     hdGetDoublev(HD_CURRENT_GIMBAL_ANGLES, gimbal_angles);
+    HDdouble pos[3];
+    hdGetDoublev(HD_CURRENT_POSITION,pos);
+    //std::cerr<<"pos: "<<pos[0]<<" "<<pos[1]<<" "<<pos[2]<<std::endl;
+    //FIXME: The transform below is not correct to get pose in base frame.
     // Notice that we are inverting the Z-position value and changing Y <---> Z
     // Position
     omni_state->position = hduVector3Dd(transform[3][0], -transform[3][2], transform[3][1]);
@@ -299,6 +307,10 @@ HDCallbackCode HDCALLBACK omni_state_callback(void *pUserData)
                               0.0, 0.0, 0.0, 1.0);
     rotation_offset.getRotationMatrix(rotation_offset);
     omni_state->rot = hduQuaternion(rotation_offset * rotation);
+    /*
+    omni_state->rot = hduQuaternion(rotation);
+    */
+
     // Velocity estimation
     hduVector3Dd vel_buff(0, 0, 0);
     vel_buff = (omni_state->position * 3 - 4 * omni_state->pos_hist1 + omni_state->pos_hist2) / 0.002;                                                                                                                                      //(units)/s, 2nd order backward dif
@@ -318,10 +330,13 @@ HDCallbackCode HDCALLBACK omni_state_callback(void *pUserData)
     //~ - 0.001 * omni_state->velocity;
     //~ }
     hduVector3Dd feedback;
+    //FIXME switched that too
     // Notice that we are changing Y <---> Z and inverting the Z-force_feedback
     feedback[0] = omni_state->force[0];
     feedback[1] = omni_state->force[2];
     feedback[2] = -omni_state->force[1];
+    //feedback[1] = omni_state->force[1];
+    //feedback[2] = omni_state->force[2];
     hdSetDoublev(HD_CURRENT_FORCE, feedback);
 
     // Get buttons
@@ -340,11 +355,15 @@ HDCallbackCode HDCALLBACK omni_state_callback(void *pUserData)
             return HD_CALLBACK_DONE;
     }
 
+
+    //std::cerr<<"joints: "<<omni_state->joints[0]<<" "<<omni_state->joints[1]<<" "<<omni_state->joints[2]<<"\n";
+    //std::cerr<<"gimbal_angles: "<<gimbal_angles[0]<<" "<<gimbal_angles[1]<<" "<<gimbal_angles[2]<<"\n";
     float t[7] = {0., omni_state->joints[0], omni_state->joints[1],
                   omni_state->joints[2] - omni_state->joints[1], gimbal_angles[0],
                   gimbal_angles[1], gimbal_angles[2]};
     for (int i = 0; i < 7; i++)
         omni_state->thetas[i] = t[i];
+    
     return HD_CALLBACK_CONTINUE;
 }
 
@@ -366,6 +385,8 @@ void HHD_Auto_Calibration()
     {
         calibrationStyle = HD_CALIBRATION_INKWELL;
         RCLCPP_INFO(rclcpp::get_logger("omni_haptic_node"), "HD_CALIBRATION_INKWELL..");
+        //RCLCPP_INFO(rclcpp::get_logger("omni_haptic_node"), "updating calibration for good measure...");
+        //hdUpdateCalibration(calibrationStyle);
     }
     if (supportedCalibrationStyles & HD_CALIBRATION_AUTO)
     {
@@ -395,6 +416,10 @@ void HHD_Auto_Calibration()
         {
             RCLCPP_INFO(rclcpp::get_logger("omni_haptic_node"), "Calibration updated successfully");
             hdUpdateCalibration(calibrationStyle);
+        }
+        else if (hdCheckCalibration() == HD_CALIBRATION_OK)
+        {
+            RCLCPP_INFO(rclcpp::get_logger("omni_haptic_node"), "Calibration is already OK");
         }
         else
             RCLCPP_FATAL(rclcpp::get_logger("omni_haptic_node"), "Unknown calibration status");

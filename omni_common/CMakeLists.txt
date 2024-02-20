@@ -23,6 +23,7 @@ find_package(omni_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(urdf REQUIRED)
 
 set(THIS_PACKAGE_DEPS
   geometry_msgs
@@ -31,6 +32,7 @@ set(THIS_PACKAGE_DEPS
   sensor_msgs
   std_msgs
   tf2_ros
+  urdf
 )
 set(THIS_PACKAGE_LIBS
   ${rclcpp_LIBRARIES}
@@ -59,7 +61,7 @@ target_link_libraries(omni
 )
 target_include_directories(omni
   PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+#  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>  
   ${THIS_PACKAGE_INCLUDE_DIRS}
 )
@@ -80,7 +82,7 @@ target_link_libraries(omni_state
 )
 target_include_directories(omni_state
   PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+#  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>  
   ${THIS_PACKAGE_INCLUDE_DIRS}
 )
@@ -89,16 +91,38 @@ ament_target_dependencies(omni_state
   ${THIS_PACKAGE_DEPS}
 )
 
+add_executable(test_omni
+  src/test_omni.cpp
+)
+target_link_libraries(test_omni
+  HD
+  HDU
+  rt
+  ncurses
+  ${THIS_PACKAGE_LIBS}
+)
+target_include_directories(test_omni
+  PUBLIC
+#  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>  
+  ${THIS_PACKAGE_INCLUDE_DIRS}
+)
+ament_target_dependencies(test_omni
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${THIS_PACKAGE_DEPS}
+)
+
 install(
   TARGETS
     omni
     omni_state
+    test_omni
   DESTINATION lib/${PROJECT_NAME}
 )
-install(
-  DIRECTORY include/${PROJECT_NAME}/
-  DESTINATION include/${PROJECT_NAME}/
-)
+#install(
+#  DIRECTORY include/${PROJECT_NAME}/
+#  DESTINATION include/${PROJECT_NAME}/
+#)
 install(
   DIRECTORY launch
   DESTINATION share/${PROJECT_NAME}

@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<robot name="phantom_omni" xmlns:xacro="http://www.ros.org/wiki/xacro">
-	
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:macro name="omni">
+
 	<!-- Materials -->
 	<material name="metal_seamed">
 		<color rgba="0.4627450980392157 0.4666666666666667 0.4509803921568628 1.0" />
@@ -121,5 +123,7 @@
     <axis xyz="0 1 0" />
     <limit lower="-2.58" upper="2.58" velocity="100" effort="5" />
   </joint>
+
+  </xacro:macro>
 </robot>
 
