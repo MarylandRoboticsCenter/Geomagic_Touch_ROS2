@@ -14,5 +14,9 @@ https://support.3dsystems.com/s/article/OpenHaptics-for-Linux-Developer-Edition-
 To use the ROS2 driver, connect the interface to the computer and check that there is connection
 Then simply launch via:
 ```
+ros2 launch omni_common omni.launch.py
+```
+The second launch file loads robot_description, adds robot_state_publisher node for the tf topic, and start RViz.
+```
 ros2 launch omni_common omni_state.launch.py
 ```
