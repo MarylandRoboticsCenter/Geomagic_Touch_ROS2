@@ -49,27 +49,6 @@ if(NOT OPENHAPTICS_INCLUDE_DIR)
   return()
 endif(NOT OPENHAPTICS_INCLUDE_DIR)
 
-add_executable(omni
-  src/omni.cpp
-)
-target_link_libraries(omni
-  HD
-  HDU
-  rt
-  ncurses
-  ${THIS_PACKAGE_LIBS}
-)
-target_include_directories(omni
-  PUBLIC
-#  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>  
-  ${THIS_PACKAGE_INCLUDE_DIRS}
-)
-ament_target_dependencies(omni
-  ${${PROJECT_NAME}_EXPORTED_TARGETS}
-  ${THIS_PACKAGE_DEPS}
-)
-
 add_executable(omni_state
   src/omni_state.cpp
 )
@@ -91,32 +70,9 @@ ament_target_dependencies(omni_state
   ${THIS_PACKAGE_DEPS}
 )
 
-add_executable(test_omni
-  src/test_omni.cpp
-)
-target_link_libraries(test_omni
-  HD
-  HDU
-  rt
-  ncurses
-  ${THIS_PACKAGE_LIBS}
-)
-target_include_directories(test_omni
-  PUBLIC
-#  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>  
-  ${THIS_PACKAGE_INCLUDE_DIRS}
-)
-ament_target_dependencies(test_omni
-  ${${PROJECT_NAME}_EXPORTED_TARGETS}
-  ${THIS_PACKAGE_DEPS}
-)
-
 install(
   TARGETS
-    omni
     omni_state
-    test_omni
   DESTINATION lib/${PROJECT_NAME}
 )
 #install(
